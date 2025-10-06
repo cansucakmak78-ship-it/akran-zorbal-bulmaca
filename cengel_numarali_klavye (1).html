@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Çengel Bulmaca — Numaralı + Türkçe Klavye</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#04233a}
+  .wrap{max-width:1000px;margin:24px auto;padding:18px}
+  h1{margin:0 0 10px 0;font-size:20px}
+  .layout{display:flex;gap:18px;align-items:flex-start}
+  .panel{background:white;padding:12px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,40,0.06)}
+  #grid{background:#e9f2fb;padding:10px;border-radius:8px}
+  table{border-collapse:collapse}
+  td{width:40px;height:40px;border:1px solid #d0dde9;text-align:center;vertical-align:middle;font-size:18px;position:relative;background:white}
+  td.block{background:#c7d9ea}
+  td input{width:100%;height:100%;border:0;background:transparent;color:inherit;text-align:center;font-size:18px;outline:none}
+  .num{position:absolute;left:3px;top:2px;font-size:10px;color:#2b5678;font-weight:700}
+  .clues{max-height:560px;overflow:auto;padding-left:12px}
+  .clue{margin-bottom:8px}
+  .controls{margin-top:10px;display:flex;gap:8px}
+  button{background:#2b6ea3;border:none;padding:8px 10px;border-radius:6px;color:white;cursor:pointer}
+  .note{font-size:13px;color:#3b556e;margin-top:8px}
+  /* Keyboard */
+  #keyboard{margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .keyrow{display:flex;gap:6px}
+  .key{background:#2b6ea3;color:white;padding:10px 12px;border-radius:6px;cursor:pointer;font-size:14px;user-select:none}
+  .key:hover{background:#184b73}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Çengel Bulmaca — Zorbalık Temalı (Numaralandırılmış + Türkçe Klavye)</h1>
+  <div class="panel controls">
+    <button id="startBtn">Bulmacayı Oluştur</button>
+    <button id="checkBtn">Kontrol Et</button>
+    <button id="revealBtn">Cevapları Göster</button>
+    <div class="note">Başlangıç hücreleri numaralandırılmıştır. İpucu listesindeki numara ile eşleşir.</div>
+  </div>
+
+  <div class="layout" style="margin-top:12px">
+    <div class="panel" id="gridPanel">
+      <div id="grid"></div>
+      <div id="keyboard"></div>
+    </div>
+    <div class="panel" style="width:360px;">
+      <h3 style="margin-top:0">İPUÇLAR (Numaralandırılmış)</h3>
+      <div class="clues" id="clues"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORDS = [
+  {word:'SÖZEL', clue:'İsim/lakap takmak, hakaret etmek, bağırmak gibi olumsuz sözel ifadelerle oluşan zorbalık türü.'},
+  {word:'SOSYAL', clue:'Oyuna alınmamak, arkadaş grubundan dışlanmak, görmezden gelmek gibi kişinin sosyal ilişkilerine yönelik zorbalık türü.'},
+  {word:'MAĞDUR', clue:'Bir ya da daha fazla kişinin kendisini rahatsız eden olumsuz davranışlara maruz kalan kişi.'},
+  {word:'SİBER', clue:'Rahatsız edici mesaj atmak, fotoğraflarını izinsiz paylaşmak, sosyal medya hesaplarını ele geçirmek gibi elektronik iletişim araçlarıyla yapılan davranışları içeren zorbalık türü.'},
+  {word:'ZORBALIK', clue:'Karşı tarafa bilinçli ve kasıtlı zarar verici, engelleyici, tekrarlayıcı ve sürekli olarak yapılan davranış.'},
+  {word:'ZORBA', clue:'İsteyerek, bir veya daha fazla kişiyi rahatsız edecek olumsuz davranışlarda bulunan kişi.'},
+  {word:'SEYİRCİ', clue:'Zorbalığı gören ama müdahale etmeyen kişi.'},
+  {word:'FİZİKSEL', clue:'Vurmak, itmek, tekmelemek, eşyalarına zarar vermek gibi davranışlarla doğrudan fiziksel şiddet içeren zorbalık türü.'}
+];
+
+let N = 15;
+let solution = [];
+let placed = [];
+let activeInput = null;
+
+function newGrid(n){N=n;solution=Array.from({length:N},()=>Array.from({length:N},()=>''));placed=[];}
+
+function canPlaceAt(word,r,c,dir){
+  if(dir==='H'){if(c<0||c+word.length>N) return false;for(let i=0;i<word.length;i++){let ch=solution[r][c+i];if(ch&&ch!==word[i])return false;}return true;}
+  else {if(r<0||r+word.length>N) return false;for(let i=0;i<word.length;i++){let ch=solution[r+i][c];if(ch&&ch!==word[i])return false;}return true;}
+}
+function placeWord(word,r,c,dir){let cells=[];if(dir==='H'){for(let i=0;i<word.length;i++){solution[r][c+i]=word[i];cells.push({r,c:c+i});}}else{for(let i=0;i<word.length;i++){solution[r+i][c]=word[i];cells.push({r:r+i,c});}}let num=placed.length+1;placed.push({word,dir,r,c,cells,num});}
+function tryPlaceAll(words){const first=words[0].word;const fr=Math.floor(N/2);const fc=Math.floor((N-first.length)/2);placeWord(first,fr,fc,'H');for(let k=1;k<words.length;k++){const W=words[k].word;let found=false;for(let r=0;r<N&&!found;r++){for(let c=0;c<N&&!found;c++){const ch=solution[r][c];if(!ch)continue;for(let i=0;i<W.length&&!found;i++){if(W[i]!==ch)continue;const sc=c-i;if(canPlaceAt(W,r,sc,'H')){placeWord(W,r,sc,'H');found=true;break;}const sr=r-i;if(canPlaceAt(W,sr,c,'V')){placeWord(W,sr,c,'V...
+
+function render(){const gridEl=document.getElementById('grid');gridEl.innerHTML='';const table=document.createElement('table');for(let r=0;r<N;r++){const tr=document.createElement('tr');for(let c=0;c<N;c++){const td=document.createElement('td');if(!solution[r][c]){td.className='block';tr.appendChild(td);continue;}const start=placed.find(p=>p.r===r&&p.c===c);if(start){const span=document.createElement('span');span.className='num';span.textContent=start.num;td.appendChild(span);}const inp=document.createEl...
+
+function checkAnswers(){let total=0,correct=0;placed.forEach(p=>{p.cells.forEach(cell=>{total++;const tr=document.querySelectorAll('table tr')[cell.r];const td=tr.children[cell.c];const inp=td.querySelector('input');const val=(inp.value||'').toUpperCase();if(val===solution[cell.r][cell.c]){inp.style.background='#dff7e6';correct++;}else if(val){inp.style.background='#fde6e6';}else inp.style.background='';});});alert('Doğru harf: '+correct+' / '+total);}
+function revealAnswers(){placed.forEach(p=>{p.cells.forEach(cell=>{const tr=document.querySelectorAll('table tr')[cell.r];const td=tr.children[cell.c];const inp=td.querySelector('input');inp.value=solution[cell.r][cell.c];});});}
+
+function renderKeyboard(){const kb=document.getElementById('keyboard');kb.innerHTML='';const rows=[
+  ['F','G','Ğ','O','D','R','N','H','P','Q','W'],
+  ['U','İ','E','A','Ü','T','K','M','L','Y','Ş'],
+  ['Z','C','Ç','V','B','S','İ','O','Ö','U'],
+  ['⌫']
+];rows.forEach(r=>{const rowDiv=document.createElement('div');rowDiv.className='keyrow';r.forEach(ch=>{const btn=document.createElement('div');btn.className='key';btn.textContent=ch;btn.addEventListener('click',()=>{if(!activeInput)return;if(ch==='⌫'){activeInput.value='';}else{activeInput.value=ch;moveNext(activeInput);}activeInput.focus();});rowDiv.appendChild(btn);});kb.appendChild(rowDiv);});}
+
+function moveNext(inp){const r=parseInt(inp.dataset.r),c=parseInt(inp.dataset.c);const tr=document.querySelectorAll('table tr')[r];const td=tr.children[c+1];if(td){const ni=td.querySelector('input');if(ni){ni.focus();return;}}}
+
+document.getElementById('startBtn').addEventListener('click',()=>{newGrid(15);tryPlaceAll(WORDS);render();renderKeyboard();});
+document.getElementById('checkBtn').addEventListener('click',checkAnswers);
+document.getElementById('revealBtn').addEventListener('click',revealAnswers);
+</script>
+</body>
+</html>
